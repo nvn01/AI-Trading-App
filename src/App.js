@@ -20,58 +20,59 @@ const App = () => {
     fetchImages();
   }, []);
 
-  const analyzeImage = async (imageName) => {
+  const analyzeImages = async (selectedImages) => {
     try {
       const { data } = await axios.post('http://localhost:8000/analyze', {
         prompt,
-        imageName,
+        imageNames: selectedImages,  // Send selected image names
       });
-      setResponses((prevResponses) => [...prevResponses, { imageName, message: data }]);
+      setResponses((prevResponses) => [...prevResponses, { images: selectedImages, message: data }]);
     } catch (err) {
       console.error(err);
-      setError('Failed to analyze image');
+      setError('Failed to analyze images');
     }
   };
 
-  const uploadImage = async (event) => {
+  const uploadImages = async (event) => {
     const formData = new FormData();
-    formData.append('file', event.target.files[0]);
+    Array.from(event.target.files).forEach(file => formData.append('files', file));
+
     try {
       const { data } = await axios.post('http://localhost:8000/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      setImages((prevImages) => [...prevImages, data.path.split('/').pop()]);
+      setImages((prevImages) => [...prevImages, ...data.files]);
     } catch (err) {
       console.error(err);
-      setError('Failed to upload image');
+      setError('Failed to upload images');
     }
   };
 
   return (
     <div className="app">
-      <h1>Trading Chart Analyzer</h1>
+      <h1>Trading Chart Analyzer & Fable Creator</h1>
       {error && <p>{error}</p>}
       <input
         type="text"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Enter your prompt here"
+        placeholder="Enter a prompt for the story"
       />
-      <input type="file" onChange={uploadImage} />
+      <input type="file" multiple onChange={uploadImages} />
       <div className="images-container">
         {images.map((image, index) => (
           <div key={index} className="image-item">
             <img src={`images/${image}`} alt={`Chart ${index}`} />
-            <button onClick={() => analyzeImage(image)}>Analyze</button>
           </div>
         ))}
       </div>
+      <button onClick={() => analyzeImages(images)}>Create Fable</button>
       <div className="responses-container">
         {responses.map((response, index) => (
           <div key={index} className="response-item">
-            <h3>Analysis for {response.imageName}</h3>
+            <h3>Fable based on images:</h3>
             <p>{response.message}</p>
           </div>
         ))}

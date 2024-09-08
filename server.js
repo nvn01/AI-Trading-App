@@ -16,7 +16,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_KEY,
 });
 
-// Setup multer for file uploads
+// Setup multer for multiple file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'public/images');
@@ -26,16 +26,17 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage }).single('file');
+const upload = multer({ storage: storage }).array('files', 10); // Allows multiple files
 
-// Endpoint for image upload
+// Endpoint for image upload (multiple images)
 app.post('/upload', (req, res) => {
   upload(req, res, (err) => {
     if (err) {
       return res.status(500).json(err);
     }
-    const filePath = req.file.path;
-    res.status(200).json({ message: 'File uploaded successfully', path: filePath });
+    const filePaths = req.files.map(file => file.path);
+    const fileNames = filePaths.map(path => path.split('/').pop());
+    res.status(200).json({ message: 'Files uploaded successfully', files: fileNames });
   });
 });
 
@@ -51,27 +52,44 @@ app.get('/images', (req, res) => {
   });
 });
 
-// Endpoint to analyze images
+// Endpoint to analyze multiple images and generate a fable
 app.post('/analyze', async (req, res) => {
   try {
-    const { prompt, imageName } = req.body;
-    const imagePath = path.join(__dirname, 'public/images', imageName);
-    if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({ error: 'Image not found' });
+    const { prompt, imageNames } = req.body; // Array of image names
+    const imagePaths = imageNames.map(name => path.join(__dirname, 'public/images', name));
+
+    // Ensure all images exist
+    for (const imagePath of imagePaths) {
+      if (!fs.existsSync(imagePath)) {
+        return res.status(404).json({ error: 'One or more images not found' });
+      }
     }
-    const imageAsBase64 = fs.readFileSync(imagePath, 'base64');
+
+    // Convert images to base64
+    const imagesAsBase64 = imagePaths.map(imagePath => fs.readFileSync(imagePath, 'base64'));
+
+    // Build the message for OpenAI
+    const imageUrls = imagesAsBase64.map(base64 => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }));
+
+    // Create the OpenAI request
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o',  // Keep your model here
       messages: [
+        {
+          role: 'system',
+          content: "You are an AI that creates short fable stories based on images."
+        },
         {
           role: 'user',
           content: [
             { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageAsBase64}` } },
-          ],
-        },
+            ...imageUrls
+          ]
+        }
       ],
     });
+
+    // Send back the story
     res.send(response.choices[0].message.content);
   } catch (err) {
     console.error('Error processing request:', err);
