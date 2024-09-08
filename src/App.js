@@ -1,54 +1,81 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const App = () => {
   const [images, setImages] = useState([]);
-  const [response, setResponse] = useState("");
-  const [error, setError] = useState("");
+  const [responses, setResponses] = useState([]);
+  const [error, setError] = useState('');
+  const [prompt, setPrompt] = useState('');
 
-  const handleFiles = (e) => {
-    const files = Array.from(e.target.files);
-    setImages(files);
-  };
+  useEffect(() => {
+    const fetchImages = async () => {
+      try {
+        const { data } = await axios.get('http://localhost:8000/images');
+        setImages(data);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to fetch images');
+      }
+    };
+    fetchImages();
+  }, []);
 
-  const analyzeImages = async () => {
-    setResponse("");
-    if (images.length === 0) {
-      setError("Please upload at least one image.");
-      return;
-    }
-
+  const analyzeImage = async (imageName) => {
     try {
-      const results = await Promise.all(images.map(async (image) => {
-        const formData = new FormData();
-        formData.append("file", image);
-        const { data } = await axios.post("http://localhost:8000/upload", formData);
-        const prompt = "Analyze this trading chart.";
-        const { data: openaiResponse } = await axios.post("http://localhost:8000/openai", {
-          message: prompt,
-          imageUrl: data.path,  // Assuming your backend returns the path
-          assistant_id: process.env.REACT_APP_OPENAI_ASSISTANT_ID,
-        });
-        return openaiResponse.message;
-      }));
-
-      setResponse(results.join("\n"));
+      const { data } = await axios.post('http://localhost:8000/analyze', {
+        prompt,
+        imageName,
+      });
+      setResponses((prevResponses) => [...prevResponses, { imageName, message: data }]);
     } catch (err) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      setError('Failed to analyze image');
+    }
+  };
+
+  const uploadImage = async (event) => {
+    const formData = new FormData();
+    formData.append('file', event.target.files[0]);
+    try {
+      const { data } = await axios.post('http://localhost:8000/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setImages((prevImages) => [...prevImages, data.path.split('/').pop()]);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to upload image');
     }
   };
 
   return (
     <div className="app">
       <h1>Trading Chart Analyzer</h1>
-      <input type="file" accept="image/*" multiple onChange={handleFiles} />
-      <button onClick={analyzeImages}>Analyze</button>
       {error && <p>{error}</p>}
-      {response && <div>
-        <h2>Analysis Results</h2>
-        <p>{response}</p>
-      </div>}
+      <input
+        type="text"
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Enter your prompt here"
+      />
+      <input type="file" onChange={uploadImage} />
+      <div className="images-container">
+        {images.map((image, index) => (
+          <div key={index} className="image-item">
+            <img src={`images/${image}`} alt={`Chart ${index}`} />
+            <button onClick={() => analyzeImage(image)}>Analyze</button>
+          </div>
+        ))}
+      </div>
+      <div className="responses-container">
+        {responses.map((response, index) => (
+          <div key={index} className="response-item">
+            <h3>Analysis for {response.imageName}</h3>
+            <p>{response.message}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
