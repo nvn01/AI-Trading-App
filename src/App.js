@@ -66,7 +66,7 @@ const App = () => {
         {responses.map((response, index) => (
           <div key={index} className="response-item">
             <h3>Trading Instructions:</h3>
-            <p>{response.message}</p>
+            <pre>{response.message}</pre> {/* Using preformatted text for structured output */}
           </div>
         ))}
       </div>

@@ -71,25 +71,29 @@ app.post('/analyze', async (req, res) => {
     // Build the message for OpenAI
     const imageUrls = imagesAsBase64.map(base64 => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }));
 
-    // Create the OpenAI request to generate trading instructions
+    // Create the OpenAI request to generate structured trading instructions
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',  // Keep your model here
       messages: [
         {
           role: 'system',
-          content: "You are an AI that analyzes Bitcoin chart images and provides trading instructions: whether to go long or short, along with take profit and stop loss levels."
+          content: "You are an AI that analyzes Bitcoin price chart images (15M, 1H, or 4H) with indicators like MACD, RSI, and Moving Averages, and provides structured trading instructions."
         },
         {
           role: 'user',
           content: [
-            "Analyze the following Bitcoin chart images and provide trading instructions:",
+            "Analyze the following Bitcoin chart images and provide trading instructions with the following structure:",
+            "Decision: Long or Short",
+            "Entry Price: Based on the current price in the image",
+            "Take Profit: Set based on resistance levels or positive momentum from indicators",
+            "Stop Loss: Set based on support levels or negative momentum",
             ...imageUrls
           ]
         }
       ],
     });
 
-    // Send back the trading instructions
+    // Send back the structured trading instructions
     res.send(response.choices[0].message.content);
   } catch (err) {
     console.error('Error processing request:', err);
