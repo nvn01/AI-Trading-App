@@ -16,7 +16,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_KEY,
 });
 
-// Setup multer for multiple file uploads
+// Setup multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'public/images');
@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage }).array('files', 10); // Allows multiple files
+const upload = multer({ storage: storage }).array('files', 10); // For multiple images
 
 // Endpoint for image upload (multiple images)
 app.post('/upload', (req, res) => {
@@ -52,10 +52,10 @@ app.get('/images', (req, res) => {
   });
 });
 
-// Endpoint to analyze multiple images and generate a fable
+// Endpoint to analyze Bitcoin chart images and generate trading instructions
 app.post('/analyze', async (req, res) => {
   try {
-    const { prompt, imageNames } = req.body; // Array of image names
+    const { imageNames } = req.body; // Array of image names
     const imagePaths = imageNames.map(name => path.join(__dirname, 'public/images', name));
 
     // Ensure all images exist
@@ -71,25 +71,25 @@ app.post('/analyze', async (req, res) => {
     // Build the message for OpenAI
     const imageUrls = imagesAsBase64.map(base64 => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }));
 
-    // Create the OpenAI request
+    // Create the OpenAI request to generate trading instructions
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',  // Keep your model here
       messages: [
         {
           role: 'system',
-          content: "You are an AI that creates short fable stories based on images."
+          content: "You are an AI that analyzes Bitcoin chart images and provides trading instructions: whether to go long or short, along with take profit and stop loss levels."
         },
         {
           role: 'user',
           content: [
-            { type: 'text', text: prompt },
+            "Analyze the following Bitcoin chart images and provide trading instructions:",
             ...imageUrls
           ]
         }
       ],
     });
 
-    // Send back the story
+    // Send back the trading instructions
     res.send(response.choices[0].message.content);
   } catch (err) {
     console.error('Error processing request:', err);
