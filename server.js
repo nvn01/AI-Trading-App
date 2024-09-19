@@ -52,10 +52,10 @@ app.get('/images', (req, res) => {
   });
 });
 
-// Endpoint to analyze Bitcoin chart images and generate trading instructions
+// Endpoint to analyze Bitcoin chart images and generate a single trading instruction
 app.post('/analyze', async (req, res) => {
   try {
-    const { imageNames } = req.body; // Array of image names
+    const { imageNames, customPrompt } = req.body; // Added customPrompt from frontend
     const imagePaths = imageNames.map(name => path.join(__dirname, 'public/images', name));
 
     // Ensure all images exist
@@ -71,18 +71,23 @@ app.post('/analyze', async (req, res) => {
     // Build the message for OpenAI
     const imageUrls = imagesAsBase64.map(base64 => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }));
 
+    // Use custom prompt if provided, otherwise use the default prompt
+    const promptMessage = customPrompt 
+      ? customPrompt
+      : "Analyze the following Bitcoin chart images from different timeframes (15M, 1H, and 4H) and provide a **single trading decision** with the following structure:";
+
     // Create the OpenAI request to generate structured trading instructions
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',  // Keep your model here
       messages: [
         {
           role: 'system',
-          content: "You are an AI that analyzes Bitcoin price chart images (15M, 1H, or 4H) with indicators like MACD, RSI, and Moving Averages, and provides structured trading instructions."
+          content: "You are an AI that analyzes Bitcoin price chart images with indicators like MACD, RSI, and Moving Averages."
         },
         {
           role: 'user',
           content: [
-            "Analyze the following Bitcoin chart images and provide trading instructions with the following structure:",
+            promptMessage,
             "Decision: Long or Short",
             "Entry Price: Based on the current price in the image",
             "Take Profit: Set based on resistance levels or positive momentum from indicators",

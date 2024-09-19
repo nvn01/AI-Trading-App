@@ -5,7 +5,7 @@ const App = () => {
   const [images, setImages] = useState([]);
   const [responses, setResponses] = useState([]);
   const [error, setError] = useState('');
-  const [prompt, setPrompt] = useState('');
+  const [customPrompt, setCustomPrompt] = useState(''); // State for custom prompt
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -24,6 +24,7 @@ const App = () => {
     try {
       const { data } = await axios.post('http://localhost:8000/analyze', {
         imageNames: selectedImages,  // Send selected image names
+        customPrompt,  // Send the custom prompt (optional)
       });
       setResponses((prevResponses) => [...prevResponses, { images: selectedImages, message: data }]);
     } catch (err) {
@@ -53,13 +54,19 @@ const App = () => {
     <div className="app">
       <h1>Bitcoin Chart Analyzer - Trading Instructions</h1>
       {error && <p>{error}</p>}
+      <input
+        type="text"
+        value={customPrompt}
+        onChange={(e) => setCustomPrompt(e.target.value)}
+        placeholder="Optional: Enter custom prompt"
+      />
       <input type="file" multiple onChange={uploadImages} />
       <div className="images-container">
         {images.map((image, index) => (
           <div key={index} className="image-item">
             <img src={`images/${image}`} alt={`Chart ${index}`} />
           </div>
-        ))}
+        ))} 
       </div>
       <button onClick={() => analyzeImages(images)}>Get Trading Instructions</button>
       <div className="responses-container">
